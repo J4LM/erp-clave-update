@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::{AppHandle, State};
 
+use crate::compare::{self, Comparison};
 use crate::db::Database;
 use crate::error::AppResult;
-use crate::exclusions::{self, ExclusionPreview};
+use crate::exclusions::{self, ExclusionPreview, ExclusionSet};
 use crate::net::{self, ConnectionTest, Credentials};
-use crate::profiles::{Profile, ProfileInput, ProfileSummary, ServerInput};
+use crate::profiles::{Profile, ProfileInput, ProfileSummary, Server, ServerInput};
 use crate::secrets;
 
 #[derive(Serialize)]
@@ -109,16 +110,20 @@ pub fn delete_server(db: State<'_, Database>, id: i64) -> AppResult<()> {
     secrets::delete_password(id)
 }
 
+fn credentials_of(server: &Server) -> AppResult<Option<Credentials>> {
+    match &server.username {
+        Some(username) => Ok(Some(Credentials {
+            username: username.clone(),
+            password: secrets::get_password(server.id)?.unwrap_or_default(),
+        })),
+        None => Ok(None),
+    }
+}
+
 #[tauri::command]
 pub async fn test_server(db: State<'_, Database>, id: i64) -> AppResult<ConnectionTest> {
     let server = db.get_server(id)?;
-    let credentials = match server.username {
-        Some(username) => Some(Credentials {
-            username,
-            password: secrets::get_password(id)?.unwrap_or_default(),
-        }),
-        None => None,
-    };
+    let credentials = credentials_of(&server)?;
     // Las carpetas de red pueden tardar en responder; se hace fuera del hilo principal.
     let result = tauri::async_runtime::spawn_blocking(move || {
         net::test_connection(&server.share, credentials.as_ref())
@@ -157,4 +162,22 @@ pub async fn preview_exclusions(
         None => db.exclusion_patterns(profile_id, server_id)?,
     };
     tauri::async_runtime::spawn_blocking(move || exclusions::preview(&source, &patterns)).await?
+}
+
+/// Compara la publicación de un perfil con la carpeta de uno de sus servidores.
+#[tauri::command]
+pub async fn compare_server(
+    db: State<'_, Database>,
+    profile_id: i64,
+    server_id: i64,
+) -> AppResult<Comparison> {
+    let source = PathBuf::from(db.get_profile(profile_id)?.source_path);
+    let server = db.get_server(server_id)?;
+    let credentials = credentials_of(&server)?;
+    let exclusions = ExclusionSet::new(&db.exclusion_patterns(profile_id, Some(server_id))?)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let target = net::connect(&server.share, credentials.as_ref())?;
+        compare::compare(&source, &target, &exclusions)
+    })
+    .await?
 }

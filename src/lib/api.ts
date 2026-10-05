@@ -147,3 +147,35 @@ export const exclusionPreviewQuery = (
       }),
     retry: false,
   });
+
+export type FileStatus =
+  | "new"
+  | "modified"
+  | "deleted"
+  | "excluded"
+  | "unchanged";
+
+export interface FileEntry {
+  /** Ruta relativa separada por `/`. */
+  path: string;
+  status: FileStatus;
+  /** Tamaño en la publicación; null si el archivo no existe allí. */
+  sourceSize: number | null;
+  /** Tamaño en el servidor; null si el archivo no existe allí. */
+  targetSize: number | null;
+}
+
+export interface Comparison {
+  entries: FileEntry[];
+  counts: Record<FileStatus, number> & { bytesToCopy: number };
+}
+
+// Comparar lee los archivos del servidor, así que solo se hace a petición.
+export const comparisonQuery = (profileId: number, serverId: number) =>
+  queryOptions({
+    queryKey: ["comparison", profileId, serverId],
+    queryFn: () =>
+      invoke<Comparison>("compare_server", { profileId, serverId }),
+    staleTime: Infinity,
+    retry: false,
+  });

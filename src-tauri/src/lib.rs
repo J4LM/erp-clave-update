@@ -1,4 +1,5 @@
 mod commands;
+mod compare;
 mod db;
 mod error;
 mod exclusions;
@@ -40,6 +41,7 @@ pub fn run() {
             commands::add_exclusion,
             commands::delete_exclusion,
             commands::preview_exclusions,
+            commands::compare_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
