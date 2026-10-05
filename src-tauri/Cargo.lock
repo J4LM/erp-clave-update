@@ -980,7 +980,7 @@ dependencies = [
 
 [[package]]
 name = "erp-clave-update"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "globset",
  "keyring",

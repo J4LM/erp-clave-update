@@ -1,6 +1,10 @@
 name: Release
 
-# Se ejecuta al subir una etiqueta de versión, por ejemplo v0.1.0.
+# Se ejecuta al subir una etiqueta de versión.
+# - v0.5.0: se publica y las apps instaladas se actualizan a ella.
+# - v0.5.0-beta.1 (cualquier etiqueta con guion): queda como borrador, visible
+#   solo para quien puede escribir en el repositorio, y las apps la ignoran
+#   hasta que se publique a mano desde GitHub.
 on:
   push:
     tags:
@@ -33,6 +37,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      # Evita publicar un instalador cuya versión no coincide con la etiqueta.
+      - name: Comprobar que la etiqueta coincide con package.json
+        shell: bash
+        run: |
+          version="v$(bun -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::La etiqueta $GITHUB_REF_NAME no coincide con la versión $version de package.json"
+            exit 1
+          fi
 
       - name: Instalar dependencias
         run: bun install --frozen-lockfile
@@ -74,5 +88,5 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: ERP Clave Update ${{ github.ref_name }}
           # La app solo ve las releases publicadas que no son de prueba.
-          releaseDraft: false
-          prerelease: false
+          releaseDraft: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
