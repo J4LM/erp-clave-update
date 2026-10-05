@@ -1,9 +1,23 @@
-import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
+import {
+  createRootRouteWithContext,
+  Link,
+  Outlet,
+} from "@tanstack/react-router";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { formDevtoolsPlugin } from "@tanstack/react-form-devtools";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import {
+  BackupIcon,
+  DeployIcon,
+  HistoryIcon,
+  HomeIcon,
+  SettingsIcon,
+} from "@/components/icons";
+import { appInfoQuery, settingQuery } from "@/lib/api";
+import { applyTheme, THEME_SETTING } from "@/lib/theme";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -13,10 +27,54 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootLayout,
 });
 
+const NAV_ITEMS = [
+  { to: "/", label: "Inicio", icon: HomeIcon, exact: true },
+  { to: "/desplegar", label: "Desplegar", icon: DeployIcon, exact: false },
+  { to: "/backups", label: "Backups", icon: BackupIcon, exact: false },
+  { to: "/historial", label: "Historial", icon: HistoryIcon, exact: false },
+  {
+    to: "/configuracion",
+    label: "Configuración",
+    icon: SettingsIcon,
+    exact: false,
+  },
+] as const;
+
 function RootLayout() {
+  const { data: theme } = useQuery(settingQuery(THEME_SETTING));
+  const { data: appInfo } = useQuery(appInfoQuery);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   return (
-    <>
-      <Outlet />
+    <div className="flex h-screen">
+      <aside className="flex w-60 shrink-0 flex-col bg-base-200">
+        <div className="px-6 py-5 text-lg font-semibold">ERP Clave Update</div>
+        <ul className="menu w-full grow gap-1 px-3">
+          {NAV_ITEMS.map(({ to, label, icon: ItemIcon, exact }) => (
+            <li key={to}>
+              <Link
+                to={to}
+                activeOptions={{ exact }}
+                activeProps={{ className: "menu-active" }}
+              >
+                <ItemIcon />
+                {label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {appInfo && (
+          <div className="px-6 py-4 text-xs text-base-content/50">
+            Versión {appInfo.version}
+          </div>
+        )}
+      </aside>
+      <main className="grow overflow-y-auto bg-base-100">
+        <Outlet />
+      </main>
       {import.meta.env.DEV && (
         <TanStackDevtools
           plugins={[
@@ -26,6 +84,6 @@ function RootLayout() {
           ]}
         />
       )}
-    </>
+    </div>
   );
 }

@@ -10,33 +10,79 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BackupsRouteImport } from './routes/backups'
+import { Route as ConfiguracionRouteImport } from './routes/configuracion'
+import { Route as DesplegarRouteImport } from './routes/desplegar'
+import { Route as HistorialRouteImport } from './routes/historial'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BackupsRoute = BackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracionRoute = ConfiguracionRouteImport.update({
+  id: '/configuracion',
+  path: '/configuracion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesplegarRoute = DesplegarRouteImport.update({
+  id: '/desplegar',
+  path: '/desplegar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistorialRoute = HistorialRouteImport.update({
+  id: '/historial',
+  path: '/historial',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/backups': typeof BackupsRoute
+  '/configuracion': typeof ConfiguracionRoute
+  '/desplegar': typeof DesplegarRoute
+  '/historial': typeof HistorialRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/backups': typeof BackupsRoute
+  '/configuracion': typeof ConfiguracionRoute
+  '/desplegar': typeof DesplegarRoute
+  '/historial': typeof HistorialRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/backups': typeof BackupsRoute
+  '/configuracion': typeof ConfiguracionRoute
+  '/desplegar': typeof DesplegarRoute
+  '/historial': typeof HistorialRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/backups' | '/configuracion' | '/desplegar' | '/historial'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/backups' | '/configuracion' | '/desplegar' | '/historial'
+  id:
+    | '__root__'
+    | '/'
+    | '/backups'
+    | '/configuracion'
+    | '/desplegar'
+    | '/historial'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BackupsRoute: typeof BackupsRoute
+  ConfiguracionRoute: typeof ConfiguracionRoute
+  DesplegarRoute: typeof DesplegarRoute
+  HistorialRoute: typeof HistorialRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +94,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/backups': {
+      id: '/backups'
+      path: '/backups'
+      fullPath: '/backups'
+      preLoaderRoute: typeof BackupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracion': {
+      id: '/configuracion'
+      path: '/configuracion'
+      fullPath: '/configuracion'
+      preLoaderRoute: typeof ConfiguracionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desplegar': {
+      id: '/desplegar'
+      path: '/desplegar'
+      fullPath: '/desplegar'
+      preLoaderRoute: typeof DesplegarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historial': {
+      id: '/historial'
+      path: '/historial'
+      fullPath: '/historial'
+      preLoaderRoute: typeof HistorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BackupsRoute: BackupsRoute,
+  ConfiguracionRoute: ConfiguracionRoute,
+  DesplegarRoute: DesplegarRoute,
+  HistorialRoute: HistorialRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
