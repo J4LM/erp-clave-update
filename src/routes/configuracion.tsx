@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BackupSettings } from "@/components/backup-settings";
 import { Page } from "@/components/page";
+import { UpdatesCard } from "@/components/updates-card";
 import {
   appInfoQuery,
   BACKUP_DIR_SETTING,
@@ -77,6 +78,8 @@ function Configuracion() {
           </div>
         </section>
       )}
+
+      {appInfo && <UpdatesCard currentVersion={appInfo.version} />}
 
       {appInfo && (
         <section className="card card-border bg-base-100">

@@ -19,6 +19,7 @@ import {
 } from "@/components/icons";
 import { appInfoQuery, settingQuery } from "@/lib/api";
 import { applyTheme, THEME_SETTING } from "@/lib/theme";
+import { updateQuery } from "@/lib/updater";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -45,6 +46,8 @@ const NAV_ITEMS = [
 function RootLayout() {
   const { data: theme } = useQuery(settingQuery(THEME_SETTING));
   const { data: appInfo } = useQuery(appInfoQuery);
+  // Se comprueba al arrancar; si hay versión nueva se avisa en el menú.
+  const { data: update } = useQuery(updateQuery);
 
   useEffect(() => {
     applyTheme(theme);
@@ -64,6 +67,11 @@ function RootLayout() {
               >
                 <ItemIcon />
                 {label}
+                {to === "/configuracion" && update && (
+                  <span className="badge badge-info badge-sm">
+                    Actualización
+                  </span>
+                )}
               </Link>
             </li>
           ))}
