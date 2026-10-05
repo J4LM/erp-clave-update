@@ -155,7 +155,7 @@ pub fn connect(address: &ShareAddress, credentials: Option<&Credentials>) -> App
     if let Some(credentials) = credentials {
         let share = format!("\\\\{}\\{}", address.host, address.share);
         let output = Command::new("net")
-            .args(["use", &share, &credentials.password])
+            .args(["use", share.as_str(), credentials.password.as_str()])
             .arg(format!("/user:{}", credentials.username))
             .arg("/persistent:no")
             .creation_flags(CREATE_NO_WINDOW)

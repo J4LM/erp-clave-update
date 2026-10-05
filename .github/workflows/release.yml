@@ -1,0 +1,41 @@
+name: Release
+
+# Se ejecuta al subir una etiqueta de versión, por ejemplo v0.1.0.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Tests de Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # Compila los instaladores y los adjunta a una release en borrador.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: bun tauri
+          tagName: ${{ github.ref_name }}
+          releaseName: ERP Clave Update ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: true
