@@ -28,6 +28,9 @@ tauri-plugin-log = "2"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 log = "0.4.34"
 thiserror = "2.0.21"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+globset = "0.4.20"
+walkdir = "2.5.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

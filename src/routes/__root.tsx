@@ -14,6 +14,7 @@ import {
   DeployIcon,
   HistoryIcon,
   HomeIcon,
+  ProfilesIcon,
   SettingsIcon,
 } from "@/components/icons";
 import { appInfoQuery, settingQuery } from "@/lib/api";
@@ -29,6 +30,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 const NAV_ITEMS = [
   { to: "/", label: "Inicio", icon: HomeIcon, exact: true },
+  { to: "/perfiles", label: "Perfiles", icon: ProfilesIcon, exact: false },
   { to: "/desplegar", label: "Desplegar", icon: DeployIcon, exact: false },
   { to: "/backups", label: "Backups", icon: BackupIcon, exact: false },
   { to: "/historial", label: "Historial", icon: HistoryIcon, exact: false },

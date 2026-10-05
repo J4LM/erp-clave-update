@@ -8,7 +8,7 @@ export const THEMES = [
 
 export type Theme = (typeof THEMES)[number]["value"];
 
-// Without data-theme daisyUI follows the system preference.
+// Sin data-theme, daisyUI sigue la preferencia del sistema.
 export function applyTheme(theme: string | null | undefined) {
   const root = document.documentElement;
   if (theme === "light" || theme === "dark") {

@@ -5,11 +5,39 @@ use rusqlite::{Connection, OptionalExtension};
 
 use crate::error::{AppError, AppResult};
 
-/// Each entry runs once, in order. Never edit a published entry: add a new one.
-const MIGRATIONS: &[&str] = &["CREATE TABLE settings (
+/// Cada entrada se ejecuta una sola vez y en orden. Nunca se edita una entrada
+/// ya publicada: se añade una nueva.
+const MIGRATIONS: &[&str] = &[
+    "CREATE TABLE settings (
         key   TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
-    ) STRICT;"];
+    ) STRICT;",
+    "CREATE TABLE profiles (
+        id          INTEGER PRIMARY KEY,
+        name        TEXT NOT NULL UNIQUE,
+        source_path TEXT NOT NULL,
+        created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    ) STRICT;
+    CREATE TABLE servers (
+        id           INTEGER PRIMARY KEY,
+        profile_id   INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        name         TEXT NOT NULL,
+        host         TEXT NOT NULL,
+        share        TEXT NOT NULL,
+        subpath      TEXT NOT NULL,
+        username     TEXT,
+        has_password INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (profile_id, name)
+    ) STRICT;",
+    "CREATE TABLE exclusions (
+        id         INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        server_id  INTEGER REFERENCES servers(id) ON DELETE CASCADE,
+        pattern    TEXT NOT NULL COLLATE NOCASE
+    ) STRICT;
+    CREATE UNIQUE INDEX exclusions_unique
+        ON exclusions (profile_id, ifnull(server_id, 0), pattern);",
+];
 
 pub struct Database {
     conn: Mutex<Connection>,
@@ -94,7 +122,7 @@ mod tests {
             db.set_setting("theme", "dark").unwrap();
             db.set_setting("theme", "light").unwrap();
         }
-        // Reopening must not re-run migrations and must keep the data.
+        // Al reabrir no deben repetirse las migraciones y deben conservarse los datos.
         let db = Database::open(&path).unwrap();
         assert_eq!(db.get_setting("theme").unwrap().as_deref(), Some("light"));
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();

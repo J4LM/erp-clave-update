@@ -1,6 +1,10 @@
 mod commands;
 mod db;
 mod error;
+mod exclusions;
+mod net;
+mod profiles;
+mod secrets;
 
 use tauri::Manager;
 
@@ -24,6 +28,18 @@ pub fn run() {
             commands::get_app_info,
             commands::get_setting,
             commands::set_setting,
+            commands::list_profiles,
+            commands::get_profile,
+            commands::create_profile,
+            commands::update_profile,
+            commands::delete_profile,
+            commands::create_server,
+            commands::update_server,
+            commands::delete_server,
+            commands::test_server,
+            commands::add_exclusion,
+            commands::delete_exclusion,
+            commands::preview_exclusions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

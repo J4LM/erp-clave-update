@@ -62,3 +62,9 @@ export const SettingsIcon = () => (
     <circle cx="16" cy="18" r="2" />
   </Icon>
 );
+
+export const ProfilesIcon = () => (
+  <Icon>
+    <path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+  </Icon>
+);

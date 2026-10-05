@@ -14,6 +14,9 @@ import { Route as BackupsRouteImport } from './routes/backups'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as DesplegarRouteImport } from './routes/desplegar'
 import { Route as HistorialRouteImport } from './routes/historial'
+import { Route as PerfilesIndexRouteImport } from './routes/perfiles/index'
+import { Route as PerfilesProfileIdRouteImport } from './routes/perfiles/$profileId'
+import { Route as PerfilesNuevoRouteImport } from './routes/perfiles/nuevo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +43,21 @@ const HistorialRoute = HistorialRouteImport.update({
   path: '/historial',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PerfilesIndexRoute = PerfilesIndexRouteImport.update({
+  id: '/perfiles/',
+  path: '/perfiles/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilesProfileIdRoute = PerfilesProfileIdRouteImport.update({
+  id: '/perfiles/$profileId',
+  path: '/perfiles/$profileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilesNuevoRoute = PerfilesNuevoRouteImport.update({
+  id: '/perfiles/nuevo',
+  path: '/perfiles/nuevo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +65,9 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
+  '/perfiles/$profileId': typeof PerfilesProfileIdRoute
+  '/perfiles/nuevo': typeof PerfilesNuevoRoute
+  '/perfiles/': typeof PerfilesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +75,9 @@ export interface FileRoutesByTo {
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
+  '/perfiles/$profileId': typeof PerfilesProfileIdRoute
+  '/perfiles/nuevo': typeof PerfilesNuevoRoute
+  '/perfiles': typeof PerfilesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +86,31 @@ export interface FileRoutesById {
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
+  '/perfiles/$profileId': typeof PerfilesProfileIdRoute
+  '/perfiles/nuevo': typeof PerfilesNuevoRoute
+  '/perfiles/': typeof PerfilesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/backups' | '/configuracion' | '/desplegar' | '/historial'
+  fullPaths:
+    | '/'
+    | '/backups'
+    | '/configuracion'
+    | '/desplegar'
+    | '/historial'
+    | '/perfiles/$profileId'
+    | '/perfiles/nuevo'
+    | '/perfiles/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/backups' | '/configuracion' | '/desplegar' | '/historial'
+  to:
+    | '/'
+    | '/backups'
+    | '/configuracion'
+    | '/desplegar'
+    | '/historial'
+    | '/perfiles/$profileId'
+    | '/perfiles/nuevo'
+    | '/perfiles'
   id:
     | '__root__'
     | '/'
@@ -75,6 +118,9 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/desplegar'
     | '/historial'
+    | '/perfiles/$profileId'
+    | '/perfiles/nuevo'
+    | '/perfiles/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +129,9 @@ export interface RootRouteChildren {
   ConfiguracionRoute: typeof ConfiguracionRoute
   DesplegarRoute: typeof DesplegarRoute
   HistorialRoute: typeof HistorialRoute
+  PerfilesProfileIdRoute: typeof PerfilesProfileIdRoute
+  PerfilesNuevoRoute: typeof PerfilesNuevoRoute
+  PerfilesIndexRoute: typeof PerfilesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +171,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistorialRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/perfiles/': {
+      id: '/perfiles/'
+      path: '/perfiles'
+      fullPath: '/perfiles/'
+      preLoaderRoute: typeof PerfilesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfiles/$profileId': {
+      id: '/perfiles/$profileId'
+      path: '/perfiles/$profileId'
+      fullPath: '/perfiles/$profileId'
+      preLoaderRoute: typeof PerfilesProfileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfiles/nuevo': {
+      id: '/perfiles/nuevo'
+      path: '/perfiles/nuevo'
+      fullPath: '/perfiles/nuevo'
+      preLoaderRoute: typeof PerfilesNuevoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +201,9 @@ const rootRouteChildren: RootRouteChildren = {
   ConfiguracionRoute: ConfiguracionRoute,
   DesplegarRoute: DesplegarRoute,
   HistorialRoute: HistorialRoute,
+  PerfilesProfileIdRoute: PerfilesProfileIdRoute,
+  PerfilesNuevoRoute: PerfilesNuevoRoute,
+  PerfilesIndexRoute: PerfilesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
