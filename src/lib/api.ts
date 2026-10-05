@@ -278,6 +278,8 @@ export interface ChangedFile {
 
 export interface Deployment {
   id: number;
+  /** restore: restauración manual de un backup; `copied` son los archivos restaurados. */
+  kind: "deploy" | "restore";
   profileName: string;
   serverName: string;
   /** Fechas UTC en formato `AAAA-MM-DD HH:MM:SS`. */

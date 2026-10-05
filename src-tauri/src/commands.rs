@@ -8,7 +8,8 @@ use crate::backup::{self, Backup, NewBackup, Progress, RestoreStats, BACKUP_DIR_
 use crate::compare::{self, Comparison};
 use crate::db::Database;
 use crate::deploy::{
-    self, DeployProgress, DeployStats, DeployStatus, Deployment, NewDeployment, Phase, OFFLINE_FILE,
+    self, DeployProgress, DeployStats, DeployStatus, Deployment, Kind, NewDeployment, Phase,
+    OFFLINE_FILE,
 };
 use crate::error::AppResult;
 use crate::exclusions::{self, ExclusionPreview, ExclusionSet};
@@ -274,19 +275,44 @@ pub async fn restore_backup(
         db.exclusion_patterns(server.profile_id, Some(server_id))?
     };
     let protect = ExclusionSet::new(&patterns)?;
+    let profile_name = db.profile_name(server.profile_id)?;
+    let started_at = db.now()?;
 
-    tauri::async_runtime::spawn_blocking(move || {
-        let target = net::connect(&server.share, credentials.as_ref())?;
-        backup::restore_archive(
-            &PathBuf::from(backup.file_path),
-            &target,
-            &protect,
-            &|progress| {
-                let _ = on_progress.send(progress);
-            },
-        )
+    let share = server.share.clone();
+    let archive = PathBuf::from(&backup.file_path);
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let target = net::connect(&share, credentials.as_ref())?;
+        backup::restore_archive(&archive, &target, &protect, &|progress| {
+            let _ = on_progress.send(progress);
+        })
     })
-    .await?
+    .await?;
+
+    // La restauración cambia el servidor, así que también queda en el historial.
+    let error = result.as_ref().err().map(|error| error.to_string());
+    let stats = DeployStats {
+        copied: result.as_ref().map_or(0, |stats| stats.restored),
+        deleted: result.as_ref().map_or(0, |stats| stats.deleted),
+        ..DeployStats::default()
+    };
+    db.insert_deployment(&NewDeployment {
+        kind: Kind::Restore,
+        profile_id: server.profile_id,
+        server_id,
+        profile_name: &profile_name,
+        server_name: &server.name,
+        started_at: &started_at,
+        status: if result.is_ok() {
+            DeployStatus::Ok
+        } else {
+            DeployStatus::Failed
+        },
+        stats: &stats,
+        backup_id: Some(backup.id),
+        note: "",
+        error: error.as_deref(),
+    })?;
+    result
 }
 
 #[tauri::command]
@@ -430,6 +456,7 @@ pub async fn deploy_server(
     };
 
     let deployment = db.insert_deployment(&NewDeployment {
+        kind: Kind::Deploy,
         profile_id,
         server_id,
         profile_name: &profile_name,

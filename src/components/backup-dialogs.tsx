@@ -5,6 +5,7 @@ import { Dialog, ErrorAlert, ProgressBar } from "@/components/form";
 import {
   backupsQuery,
   createBackup,
+  deploymentsQuery,
   profileQuery,
   profilesQuery,
   restoreBackup,
@@ -187,6 +188,7 @@ export function RestoreBackupDialog({
   backup,
   onClose,
 }: RestoreBackupDialogProps) {
+  const queryClient = useQueryClient();
   const [includeExcluded, setIncludeExcluded] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -203,6 +205,9 @@ export function RestoreBackupDialog({
       setError(cause);
     } finally {
       setRunning(false);
+      // El servidor ha cambiado: las comparaciones hechas ya no valen.
+      queryClient.removeQueries({ queryKey: ["comparison"] });
+      void queryClient.invalidateQueries({ queryKey: deploymentsQuery.queryKey });
     }
   }
 

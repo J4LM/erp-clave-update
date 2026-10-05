@@ -68,6 +68,7 @@ const MIGRATIONS: &[&str] = &[
         error        TEXT,
         files        TEXT NOT NULL
     ) STRICT;",
+    "ALTER TABLE deployments ADD COLUMN kind TEXT NOT NULL DEFAULT 'deploy';",
 ];
 
 pub struct Database {

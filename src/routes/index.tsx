@@ -1,7 +1,12 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  DeploymentStatus,
+  kindLabel,
+} from "@/components/deployment-status";
 import { EmptyState, Page } from "@/components/page";
-import { profilesQuery } from "@/lib/api";
+import { deploymentsQuery, profilesQuery } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(profilesQuery),
@@ -10,6 +15,8 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { data: profiles } = useSuspenseQuery(profilesQuery);
+  const { data: deployments = [] } = useQuery(deploymentsQuery);
+  const recent = deployments.slice(0, 5);
   const serverCount = profiles.reduce(
     (total, profile) => total + profile.serverCount,
     0,
@@ -61,6 +68,44 @@ function Index() {
             </div>
           </div>
         </div>
+      )}
+
+      {profiles.length > 0 && (
+        <section className="card card-border bg-base-100">
+          <div className="card-body">
+            <div className="flex items-center justify-between">
+              <h2 className="card-title">Última actividad</h2>
+              {recent.length > 0 && (
+                <Link to="/historial" className="btn btn-sm btn-ghost">
+                  Ver historial
+                </Link>
+              )}
+            </div>
+            {recent.length === 0 ? (
+              <p className="py-4 text-center text-base-content/60">
+                Todavía no se ha desplegado nada.
+              </p>
+            ) : (
+              <ul className="list">
+                {recent.map((deployment) => (
+                  <li key={deployment.id} className="list-row items-center">
+                    <div className="list-col-grow min-w-0">
+                      <div className="font-medium">
+                        {kindLabel(deployment)} en {deployment.serverName}
+                      </div>
+                      <div className="truncate text-xs text-base-content/60">
+                        {formatDate(deployment.startedAt)} ·{" "}
+                        {deployment.profileName}
+                        {deployment.note && ` · ${deployment.note}`}
+                      </div>
+                    </div>
+                    <DeploymentStatus deployment={deployment} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       )}
     </Page>
   );

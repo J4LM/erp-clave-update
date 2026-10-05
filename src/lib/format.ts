@@ -22,3 +22,12 @@ export function formatDate(utc: string) {
   const date = new Date(`${utc.replace(" ", "T")}Z`);
   return Number.isNaN(date.getTime()) ? utc : DATE_FORMAT.format(date);
 }
+
+/** Duración entre dos fechas UTC de la base de datos, por ejemplo "1 min 12 s". */
+export function formatDuration(startUtc: string, endUtc: string) {
+  const parse = (utc: string) => new Date(`${utc.replace(" ", "T")}Z`).getTime();
+  const seconds = Math.max(0, Math.round((parse(endUtc) - parse(startUtc)) / 1000));
+  if (Number.isNaN(seconds)) return "—";
+  if (seconds < 60) return `${seconds} s`;
+  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+}

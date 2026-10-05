@@ -294,10 +294,37 @@ impl DeployStatus {
     }
 }
 
+/// Qué operación cambió el servidor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Kind {
+    /// Copia de la publicación al servidor.
+    Deploy,
+    /// Restauración manual de un backup; `copied` son los archivos restaurados.
+    Restore,
+}
+
+impl Kind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Deploy => "deploy",
+            Self::Restore => "restore",
+        }
+    }
+
+    fn parse(value: &str) -> Self {
+        match value {
+            "restore" => Self::Restore,
+            _ => Self::Deploy,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Deployment {
     pub id: i64,
+    pub kind: Kind,
     pub profile_name: String,
     pub server_name: String,
     /// Fechas UTC en formato `AAAA-MM-DD HH:MM:SS`.
@@ -315,6 +342,7 @@ pub struct Deployment {
 }
 
 pub struct NewDeployment<'a> {
+    pub kind: Kind,
     pub profile_id: i64,
     pub server_id: i64,
     pub profile_name: &'a str,
@@ -330,8 +358,10 @@ pub struct NewDeployment<'a> {
 fn deployment_from_row(row: &Row<'_>) -> rusqlite::Result<Deployment> {
     let status: String = row.get("status")?;
     let files: String = row.get("files")?;
+    let kind: String = row.get("kind")?;
     Ok(Deployment {
         id: row.get("id")?,
+        kind: Kind::parse(&kind),
         profile_name: row.get("profile_name")?,
         server_name: row.get("server_name")?,
         started_at: row.get("started_at")?,
@@ -362,8 +392,9 @@ impl Database {
             let conn = self.conn()?;
             conn.execute(
                 "INSERT INTO deployments (profile_id, server_id, profile_name, server_name,
-                    started_at, status, copied, deleted, bytes_copied, backup_id, note, error, files)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                    started_at, status, copied, deleted, bytes_copied, backup_id, note, error, files,
+                    kind)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     deployment.profile_id,
                     deployment.server_id,
@@ -378,6 +409,7 @@ impl Database {
                     deployment.note.trim(),
                     deployment.error,
                     files,
+                    deployment.kind.as_str(),
                 ],
             )?;
             conn.last_insert_rowid()
@@ -555,6 +587,7 @@ mod tests {
         let started = db.now().unwrap();
         let saved = db
             .insert_deployment(&NewDeployment {
+                kind: Kind::Restore,
                 profile_id: 1,
                 server_id: 10,
                 profile_name: "ERP",
@@ -569,6 +602,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(saved.status, DeployStatus::Restored);
+        assert_eq!(saved.kind, Kind::Restore);
         assert_eq!(saved.note, "facturación");
         assert_eq!(saved.files, stats.files);
         assert_eq!(saved.error.as_deref(), Some("No se pudo copiar"));
