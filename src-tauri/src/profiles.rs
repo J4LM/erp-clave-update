@@ -345,6 +345,8 @@ mod tests {
         assert!(db.get_server(first).is_err());
         assert!(db.list_profiles().unwrap().is_empty());
 
+        // Windows no deja borrar la carpeta mientras la base de datos siga abierta.
+        drop(db);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -125,6 +125,8 @@ mod tests {
         // Al reabrir no deben repetirse las migraciones y deben conservarse los datos.
         let db = Database::open(&path).unwrap();
         assert_eq!(db.get_setting("theme").unwrap().as_deref(), Some("light"));
+        // Windows no deja borrar la carpeta mientras la base de datos siga abierta.
+        drop(db);
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
     }
 }
