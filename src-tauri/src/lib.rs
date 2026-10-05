@@ -2,6 +2,7 @@ mod backup;
 mod commands;
 mod compare;
 mod db;
+mod deploy;
 mod error;
 mod exclusions;
 mod net;
@@ -47,6 +48,8 @@ pub fn run() {
             commands::create_backup,
             commands::restore_backup,
             commands::delete_backup,
+            commands::list_deployments,
+            commands::deploy_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

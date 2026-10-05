@@ -67,14 +67,15 @@ fn index(root: &Path) -> AppResult<BTreeMap<String, String>> {
         .collect())
 }
 
-fn local_path(root: &Path, relative: &str) -> std::path::PathBuf {
+/// Convierte una ruta relativa separada por `/` en una ruta del sistema bajo `root`.
+pub fn local_path(root: &Path, relative: &str) -> std::path::PathBuf {
     relative
         .split('/')
         .fold(root.to_path_buf(), |path, part| path.join(part))
 }
 
 /// Compara el contenido byte a byte y se detiene en la primera diferencia.
-fn same_content(first: &Path, second: &Path) -> AppResult<bool> {
+pub fn same_content(first: &Path, second: &Path) -> AppResult<bool> {
     const BLOCK: usize = 64 * 1024;
     let mut first = File::open(first)?;
     let mut second = File::open(second)?;

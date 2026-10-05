@@ -1,12 +1,15 @@
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
 use crate::backup::{self, Backup, NewBackup, Progress, RestoreStats, BACKUP_DIR_SETTING};
 use crate::compare::{self, Comparison};
 use crate::db::Database;
+use crate::deploy::{
+    self, DeployProgress, DeployStats, DeployStatus, Deployment, NewDeployment, Phase, OFFLINE_FILE,
+};
 use crate::error::AppResult;
 use crate::exclusions::{self, ExclusionPreview, ExclusionSet};
 use crate::net::{self, ConnectionTest, Credentials};
@@ -289,4 +292,156 @@ pub async fn restore_backup(
 #[tauri::command]
 pub fn delete_backup(db: State<'_, Database>, id: i64) -> AppResult<()> {
     db.delete_backup(id)
+}
+
+#[tauri::command]
+pub fn list_deployments(db: State<'_, Database>) -> AppResult<Vec<Deployment>> {
+    db.list_deployments()
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeployOptions {
+    note: String,
+    /// Hacer un backup antes y restaurarlo si el despliegue falla.
+    backup: bool,
+    /// Mostrar la página de mantenimiento de IIS mientras dura.
+    maintenance: bool,
+}
+
+/// Despliega la publicación de un perfil en uno de sus servidores y lo deja
+/// registrado. Devuelve error solo si no llegó a tocar el servidor; un
+/// despliegue que falla a medias se devuelve como registro con su estado.
+#[tauri::command]
+pub async fn deploy_server(
+    app: AppHandle,
+    db: State<'_, Database>,
+    profile_id: i64,
+    server_id: i64,
+    options: DeployOptions,
+    on_progress: Channel<DeployProgress>,
+) -> AppResult<Deployment> {
+    let source = PathBuf::from(db.get_profile(profile_id)?.source_path);
+    let server = db.get_server(server_id)?;
+    let profile_name = db.profile_name(profile_id)?;
+    let credentials = credentials_of(&server)?;
+    let mut patterns = db.exclusion_patterns(profile_id, Some(server_id))?;
+    if options.maintenance {
+        // La página de mantenimiento no forma parte de la publicación: no debe
+        // borrarse como sobrante ni al restaurar.
+        patterns.push(OFFLINE_FILE.into());
+    }
+    let started_at = db.now()?;
+
+    let _ = on_progress.send(DeployProgress::phase(Phase::Connecting));
+    let share = server.share.clone();
+    let target =
+        tauri::async_runtime::spawn_blocking(move || net::connect(&share, credentials.as_ref()))
+            .await??;
+
+    let mut backup_record = None;
+    if options.backup {
+        let base = match db.get_setting(BACKUP_DIR_SETTING)? {
+            Some(dir) if !dir.trim().is_empty() => PathBuf::from(dir.trim()),
+            _ => default_backup_dir(&app)?,
+        };
+        let archive = db.new_backup_path(&base, &profile_name, &server.name)?;
+        let skip = ExclusionSet::new(&patterns)?;
+        let (folder, archive_path, channel) =
+            (target.clone(), archive.clone(), on_progress.clone());
+        let stats = tauri::async_runtime::spawn_blocking(move || {
+            backup::create_archive(&folder, &archive_path, &skip, &|progress| {
+                let _ = channel.send(DeployProgress {
+                    phase: Phase::Backup,
+                    done: progress.done,
+                    total: progress.total,
+                    path: progress.path,
+                });
+            })
+        })
+        .await??;
+        backup_record = Some(db.insert_backup(&NewBackup {
+            profile_id,
+            server_id,
+            profile_name: &profile_name,
+            server_name: &server.name,
+            file_path: &archive,
+            stats: &stats,
+            // El despliegue no toca los excluidos, así que no hace falta copiarlos.
+            complete: false,
+            note: "Automático antes de desplegar",
+        })?);
+    }
+
+    let archive = backup_record
+        .as_ref()
+        .map(|backup| PathBuf::from(&backup.file_path));
+    let maintenance = options.maintenance;
+    let (result, restore_error) = tauri::async_runtime::spawn_blocking(move || {
+        let send = |progress: DeployProgress| {
+            let _ = on_progress.send(progress);
+        };
+        let exclusions = ExclusionSet::new(&patterns)?;
+        let ours = maintenance && deploy::put_offline_page(&target)?;
+
+        let result = deploy::deploy(&source, &target, &exclusions, &send);
+        let mut restore_error = None;
+        if result.is_err() {
+            if let Some(archive) = &archive {
+                send(DeployProgress::phase(Phase::Restoring));
+                let restored =
+                    backup::restore_archive(archive, &target, &exclusions, &|progress| {
+                        send(DeployProgress {
+                            phase: Phase::Restoring,
+                            done: progress.done,
+                            total: progress.total,
+                            path: progress.path,
+                        });
+                    });
+                restore_error = restored.err().map(|error| error.to_string());
+            }
+        }
+        if ours {
+            deploy::remove_offline_page(&target)?;
+        }
+        AppResult::Ok((result, restore_error))
+    })
+    .await??;
+
+    let (status, stats, error) = match (result, restore_error) {
+        (Ok(stats), _) => (DeployStatus::Ok, stats, None),
+        (Err(error), None) if backup_record.is_some() => (
+            DeployStatus::Restored,
+            DeployStats::default(),
+            Some(error.to_string()),
+        ),
+        (Err(error), None) => (
+            DeployStatus::Failed,
+            DeployStats::default(),
+            Some(error.to_string()),
+        ),
+        (Err(error), Some(restore_error)) => (
+            DeployStatus::Failed,
+            DeployStats::default(),
+            Some(format!(
+                "{error}. Además, no se pudo restaurar el backup: {restore_error}"
+            )),
+        ),
+    };
+
+    let deployment = db.insert_deployment(&NewDeployment {
+        profile_id,
+        server_id,
+        profile_name: &profile_name,
+        server_name: &server.name,
+        started_at: &started_at,
+        status,
+        stats: &stats,
+        backup_id: backup_record.as_ref().map(|backup| backup.id),
+        note: &options.note,
+        error: error.as_deref(),
+    })?;
+    // La retención va al final para no borrar el backup recién usado.
+    db.apply_retention(server_id, db.backup_keep()?)?;
+    Ok(deployment)
 }

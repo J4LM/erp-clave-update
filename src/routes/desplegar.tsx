@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ComparisonTable } from "@/components/comparison-table";
+import { DeployDialog } from "@/components/deploy-dialog";
 import { EmptyState, Page } from "@/components/page";
 import {
   comparisonQuery,
+  deployBackupSetting,
+  deployMaintenanceSetting,
   profileQuery,
   profilesQuery,
+  settingQuery,
   type Server,
 } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
@@ -54,7 +59,7 @@ function Desplegar() {
   return (
     <Page
       title="Desplegar"
-      description="Compara la publicación con cada servidor antes de copiar nada."
+      description="Compara la publicación con cada servidor y copia los cambios."
       actions={
         <select
           className="select w-64"
@@ -154,6 +159,11 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
     ...comparisonQuery(profileId, server.id),
     enabled: false,
   });
+  const backupSetting = useQuery(settingQuery(deployBackupSetting(profileId)));
+  const maintenanceSetting = useQuery(
+    settingQuery(deployMaintenanceSetting(profileId)),
+  );
+  const [deploying, setDeploying] = useState(false);
   const counts = comparison.data?.counts;
   const changes = counts
     ? counts.new + counts.modified + counts.deleted
@@ -169,16 +179,31 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
               {server.address}
             </div>
           </div>
-          <button
-            className="btn btn-sm"
-            disabled={comparison.isFetching}
-            onClick={() => void comparison.refetch()}
-          >
-            {comparison.isFetching && (
-              <span className="loading loading-spinner loading-xs" />
+          <div className="flex shrink-0 gap-2">
+            <button
+              className="btn btn-sm"
+              disabled={comparison.isFetching}
+              onClick={() => void comparison.refetch()}
+            >
+              {comparison.isFetching && (
+                <span className="loading loading-spinner loading-xs" />
+              )}
+              {comparison.data ? "Volver a comparar" : "Comparar"}
+            </button>
+            {changes !== null && changes > 0 && (
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={
+                  comparison.isFetching ||
+                  !backupSetting.isSuccess ||
+                  !maintenanceSetting.isSuccess
+                }
+                onClick={() => setDeploying(true)}
+              >
+                Desplegar
+              </button>
             )}
-            {comparison.data ? "Volver a comparar" : "Comparar"}
-          </button>
+          </div>
         </div>
 
         {comparison.isFetching && !comparison.data && (
@@ -207,6 +232,20 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
           </>
         )}
       </div>
+
+      {deploying && counts && (
+        <DeployDialog
+          profileId={profileId}
+          server={server}
+          counts={counts}
+          defaults={{
+            // El backup va activado salvo que se desactivara la última vez.
+            backup: backupSetting.data !== "false",
+            maintenance: maintenanceSetting.data === "true",
+          }}
+          onClose={() => setDeploying(false)}
+        />
+      )}
     </section>
   );
 }

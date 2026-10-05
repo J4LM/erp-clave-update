@@ -51,6 +51,23 @@ const MIGRATIONS: &[&str] = &[
         complete      INTEGER NOT NULL,
         note          TEXT NOT NULL DEFAULT ''
     ) STRICT;",
+    "CREATE TABLE deployments (
+        id           INTEGER PRIMARY KEY,
+        profile_id   INTEGER REFERENCES profiles(id) ON DELETE SET NULL,
+        server_id    INTEGER REFERENCES servers(id) ON DELETE SET NULL,
+        profile_name TEXT NOT NULL,
+        server_name  TEXT NOT NULL,
+        started_at   TEXT NOT NULL,
+        finished_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        status       TEXT NOT NULL,
+        copied       INTEGER NOT NULL,
+        deleted      INTEGER NOT NULL,
+        bytes_copied INTEGER NOT NULL,
+        backup_id    INTEGER REFERENCES backups(id) ON DELETE SET NULL,
+        note         TEXT NOT NULL DEFAULT '',
+        error        TEXT,
+        files        TEXT NOT NULL
+    ) STRICT;",
 ];
 
 pub struct Database {

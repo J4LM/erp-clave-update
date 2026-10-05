@@ -254,3 +254,77 @@ export const restoreBackup = (
 
 export const deleteBackup = (id: number) =>
   invoke<void>("delete_backup", { id });
+
+export type DeployPhase =
+  | "connecting"
+  | "backup"
+  | "comparing"
+  | "copying"
+  | "deleting"
+  | "verifying"
+  | "restoring";
+
+export interface DeployProgress extends Progress {
+  phase: DeployPhase;
+}
+
+/** ok: copiado y verificado. restored: falló y se restauró el backup. failed: pudo quedar a medias. */
+export type DeployStatus = "ok" | "restored" | "failed";
+
+export interface ChangedFile {
+  path: string;
+  action: "added" | "replaced" | "removed";
+}
+
+export interface Deployment {
+  id: number;
+  profileName: string;
+  serverName: string;
+  /** Fechas UTC en formato `AAAA-MM-DD HH:MM:SS`. */
+  startedAt: string;
+  finishedAt: string;
+  status: DeployStatus;
+  copied: number;
+  deleted: number;
+  bytesCopied: number;
+  /** Backup hecho justo antes, si se pidió y sigue existiendo. */
+  backupId: number | null;
+  note: string;
+  error: string | null;
+  files: ChangedFile[];
+}
+
+export interface DeployOptions {
+  note: string;
+  /** Hacer un backup antes y restaurarlo si el despliegue falla. */
+  backup: boolean;
+  /** Mostrar la página de mantenimiento de IIS mientras dura. */
+  maintenance: boolean;
+}
+
+export const deploymentsQuery = queryOptions({
+  queryKey: ["deployments"],
+  queryFn: () => invoke<Deployment[]>("list_deployments"),
+});
+
+export const deployServer = (
+  profileId: number,
+  serverId: number,
+  options: DeployOptions,
+  onProgress: (progress: DeployProgress) => void,
+) => {
+  const channel = new Channel<DeployProgress>();
+  channel.onmessage = onProgress;
+  return invoke<Deployment>("deploy_server", {
+    profileId,
+    serverId,
+    options,
+    onProgress: channel,
+  });
+};
+
+// Opciones de despliegue que se recuerdan por perfil.
+export const deployBackupSetting = (profileId: number) =>
+  `deploy_backup_${profileId}`;
+export const deployMaintenanceSetting = (profileId: number) =>
+  `deploy_maintenance_${profileId}`;

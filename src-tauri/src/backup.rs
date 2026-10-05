@@ -11,6 +11,7 @@ use serde::Serialize;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
+use crate::compare::local_path;
 use crate::db::Database;
 use crate::error::{AppError, AppResult};
 use crate::exclusions::{list_files, ExclusionSet};
@@ -59,12 +60,6 @@ impl<'a> Reporter<'a> {
             });
         }
     }
-}
-
-fn local_path(root: &Path, relative: &str) -> PathBuf {
-    relative
-        .split('/')
-        .fold(root.to_path_buf(), |path, part| path.join(part))
 }
 
 fn zip_error(error: zip::result::ZipError) -> AppError {
@@ -219,7 +214,7 @@ pub fn restore_archive(
 }
 
 /// Borra las carpetas que han quedado vacías, sin subir más allá de `root`.
-fn remove_empty_parents(path: &Path, root: &Path) {
+pub fn remove_empty_parents(path: &Path, root: &Path) {
     let mut dir = path.parent();
     while let Some(current) = dir {
         // `remove_dir` falla si la carpeta no está vacía, y ahí se para.
