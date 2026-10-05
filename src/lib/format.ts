@@ -11,3 +11,14 @@ export function formatBytes(bytes: number | null) {
   const digits = unit === 0 || value >= 100 ? 0 : 1;
   return `${value.toLocaleString("es-ES", { maximumFractionDigits: digits })} ${UNITS[unit]}`;
 }
+
+const DATE_FORMAT = new Intl.DateTimeFormat("es-ES", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+/** Formatea una fecha UTC de la base de datos (`AAAA-MM-DD HH:MM:SS`) en hora local. */
+export function formatDate(utc: string) {
+  const date = new Date(`${utc.replace(" ", "T")}Z`);
+  return Number.isNaN(date.getTime()) ? utc : DATE_FORMAT.format(date);
+}

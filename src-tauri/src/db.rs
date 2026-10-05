@@ -37,6 +37,20 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;
     CREATE UNIQUE INDEX exclusions_unique
         ON exclusions (profile_id, ifnull(server_id, 0), pattern);",
+    "CREATE TABLE backups (
+        id            INTEGER PRIMARY KEY,
+        profile_id    INTEGER REFERENCES profiles(id) ON DELETE SET NULL,
+        server_id     INTEGER REFERENCES servers(id) ON DELETE SET NULL,
+        profile_name  TEXT NOT NULL,
+        server_name   TEXT NOT NULL,
+        created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        file_path     TEXT NOT NULL,
+        file_count    INTEGER NOT NULL,
+        total_bytes   INTEGER NOT NULL,
+        archive_bytes INTEGER NOT NULL,
+        complete      INTEGER NOT NULL,
+        note          TEXT NOT NULL DEFAULT ''
+    ) STRICT;",
 ];
 
 pub struct Database {

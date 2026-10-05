@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::ipc::Channel;
+use tauri::{AppHandle, Manager, State};
 
+use crate::backup::{self, Backup, NewBackup, Progress, RestoreStats, BACKUP_DIR_SETTING};
 use crate::compare::{self, Comparison};
 use crate::db::Database;
 use crate::error::AppResult;
@@ -17,15 +19,22 @@ pub struct AppInfo {
     version: String,
     os: &'static str,
     database_path: String,
+    /// Carpeta de backups que se usa si no se ha configurado otra.
+    default_backup_dir: String,
+}
+
+fn default_backup_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    Ok(app.path().app_data_dir()?.join("backups"))
 }
 
 #[tauri::command]
-pub fn get_app_info(app: AppHandle, db: State<'_, Database>) -> AppInfo {
-    AppInfo {
+pub fn get_app_info(app: AppHandle, db: State<'_, Database>) -> AppResult<AppInfo> {
+    Ok(AppInfo {
         version: app.package_info().version.to_string(),
         os: std::env::consts::OS,
         database_path: db.path().display().to_string(),
-    }
+        default_backup_dir: default_backup_dir(&app)?.display().to_string(),
+    })
 }
 
 #[tauri::command]
@@ -180,4 +189,104 @@ pub async fn compare_server(
         compare::compare(&source, &target, &exclusions)
     })
     .await?
+}
+
+#[tauri::command]
+pub fn list_backups(db: State<'_, Database>) -> AppResult<Vec<Backup>> {
+    db.list_backups()
+}
+
+/// Comprime la carpeta del servidor. Con `include_excluded` falso se dejan
+/// fuera los archivos que coinciden con las exclusiones.
+#[tauri::command]
+pub async fn create_backup(
+    app: AppHandle,
+    db: State<'_, Database>,
+    server_id: i64,
+    note: String,
+    include_excluded: bool,
+    on_progress: Channel<Progress>,
+) -> AppResult<Backup> {
+    let server = db.get_server(server_id)?;
+    let profile_name = db.profile_name(server.profile_id)?;
+    let credentials = credentials_of(&server)?;
+    let patterns = if include_excluded {
+        Vec::new()
+    } else {
+        db.exclusion_patterns(server.profile_id, Some(server_id))?
+    };
+    let skip = ExclusionSet::new(&patterns)?;
+    let base = match db.get_setting(BACKUP_DIR_SETTING)? {
+        Some(dir) if !dir.trim().is_empty() => PathBuf::from(dir.trim()),
+        _ => default_backup_dir(&app)?,
+    };
+    let archive = db.new_backup_path(&base, &profile_name, &server.name)?;
+
+    let share = server.share.clone();
+    let archive_path = archive.clone();
+    let stats = tauri::async_runtime::spawn_blocking(move || {
+        let source = net::connect(&share, credentials.as_ref())?;
+        backup::create_archive(&source, &archive_path, &skip, &|progress| {
+            let _ = on_progress.send(progress);
+        })
+    })
+    .await??;
+
+    let created = db.insert_backup(&NewBackup {
+        profile_id: server.profile_id,
+        server_id,
+        profile_name: &profile_name,
+        server_name: &server.name,
+        file_path: &archive,
+        stats: &stats,
+        complete: include_excluded,
+        note: &note,
+    })?;
+    db.apply_retention(server_id, db.backup_keep()?)?;
+    Ok(created)
+}
+
+/// Restaura un backup en su servidor. Con `include_excluded` falso los
+/// archivos excluidos del servidor no se sobrescriben ni se borran.
+#[tauri::command]
+pub async fn restore_backup(
+    db: State<'_, Database>,
+    id: i64,
+    include_excluded: bool,
+    on_progress: Channel<Progress>,
+) -> AppResult<RestoreStats> {
+    let backup = db.get_backup(id)?;
+    let server_id = backup.server_id.ok_or_else(|| {
+        crate::error::AppError::Message(
+            "El servidor de este backup se eliminó; no hay dónde restaurarlo".into(),
+        )
+    })?;
+    let server = db.get_server(server_id)?;
+    let credentials = credentials_of(&server)?;
+    // Un backup sin los archivos excluidos no puede reponerlos: restaurarlo sin
+    // protección los borraría del servidor.
+    let patterns = if include_excluded && backup.complete {
+        Vec::new()
+    } else {
+        db.exclusion_patterns(server.profile_id, Some(server_id))?
+    };
+    let protect = ExclusionSet::new(&patterns)?;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let target = net::connect(&server.share, credentials.as_ref())?;
+        backup::restore_archive(
+            &PathBuf::from(backup.file_path),
+            &target,
+            &protect,
+            &|progress| {
+                let _ = on_progress.send(progress);
+            },
+        )
+    })
+    .await?
+}
+
+#[tauri::command]
+pub fn delete_backup(db: State<'_, Database>, id: i64) -> AppResult<()> {
+    db.delete_backup(id)
 }

@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { BackupSettings } from "@/components/backup-settings";
 import { Page } from "@/components/page";
-import { appInfoQuery, setSetting, settingQuery } from "@/lib/api";
+import {
+  appInfoQuery,
+  BACKUP_DIR_SETTING,
+  BACKUP_KEEP_SETTING,
+  DEFAULT_BACKUP_KEEP,
+  setSetting,
+  settingQuery,
+} from "@/lib/api";
 import { THEME_SETTING, THEMES } from "@/lib/theme";
 
 export const Route = createFileRoute("/configuracion")({
@@ -12,6 +20,8 @@ function Configuracion() {
   const queryClient = useQueryClient();
   const { data: theme } = useQuery(settingQuery(THEME_SETTING));
   const { data: appInfo } = useQuery(appInfoQuery);
+  const backupDir = useQuery(settingQuery(BACKUP_DIR_SETTING));
+  const backupKeep = useQuery(settingQuery(BACKUP_KEEP_SETTING));
 
   const saveTheme = useMutation({
     mutationFn: (value: string) => setSetting(THEME_SETTING, value),
@@ -52,6 +62,21 @@ function Configuracion() {
           </fieldset>
         </div>
       </section>
+
+      {appInfo && backupDir.isSuccess && backupKeep.isSuccess && (
+        <section className="card card-border bg-base-100">
+          <div className="card-body">
+            <h2 className="card-title">Backups</h2>
+            <BackupSettings
+              initial={{
+                dir: backupDir.data ?? "",
+                keep: backupKeep.data ?? String(DEFAULT_BACKUP_KEEP),
+              }}
+              defaultDir={appInfo.defaultBackupDir}
+            />
+          </div>
+        </section>
+      )}
 
       {appInfo && (
         <section className="card card-border bg-base-100">

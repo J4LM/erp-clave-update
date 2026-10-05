@@ -1,3 +1,4 @@
+mod backup;
 mod commands;
 mod compare;
 mod db;
@@ -42,6 +43,10 @@ pub fn run() {
             commands::delete_exclusion,
             commands::preview_exclusions,
             commands::compare_server,
+            commands::list_backups,
+            commands::create_backup,
+            commands::restore_backup,
+            commands::delete_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

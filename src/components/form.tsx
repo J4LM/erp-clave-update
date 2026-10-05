@@ -64,11 +64,13 @@ export function ErrorAlert({ error }: { error: unknown }) {
 interface DialogProps {
   title: string;
   onClose: () => void;
+  /** Impide cerrar el modal, por ejemplo durante una operación en curso. */
+  locked?: boolean;
   children: ReactNode;
 }
 
 /** Modal que permanece abierto mientras está montado. */
-export function Dialog({ title, onClose, children }: DialogProps) {
+export function Dialog({ title, onClose, locked, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -80,13 +82,20 @@ export function Dialog({ title, onClose, children }: DialogProps) {
   }, []);
 
   return (
-    <dialog ref={ref} className="modal" onClose={onClose}>
+    <dialog
+      ref={ref}
+      className="modal"
+      onClose={onClose}
+      onCancel={(event) => {
+        if (locked) event.preventDefault();
+      }}
+    >
       <div className="modal-box">
         <h3 className="mb-2 text-lg font-semibold">{title}</h3>
         {children}
       </div>
       <form method="dialog" className="modal-backdrop">
-        <button>Cerrar</button>
+        <button disabled={locked}>Cerrar</button>
       </form>
     </dialog>
   );
@@ -127,5 +136,31 @@ export function ConfirmDialog({
         </button>
       </div>
     </Dialog>
+  );
+}
+
+interface ProgressBarProps {
+  /** `null` mientras aún no se conoce el total. */
+  progress: { done: number; total: number; path: string } | null;
+}
+
+export function ProgressBar({ progress }: ProgressBarProps) {
+  if (!progress) {
+    return <progress className="progress w-full" />;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <progress
+        className="progress w-full"
+        value={progress.done}
+        max={Math.max(progress.total, 1)}
+      />
+      <div className="flex justify-between gap-4 text-xs text-base-content/60">
+        <span className="truncate font-mono">{progress.path}</span>
+        <span className="shrink-0">
+          {progress.done} de {progress.total}
+        </span>
+      </div>
+    </div>
   );
 }

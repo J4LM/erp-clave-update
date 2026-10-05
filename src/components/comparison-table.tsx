@@ -1,15 +1,6 @@
 import { useMemo, useState } from "react";
-import {
-  createColumnHelper,
-  createPaginatedRowModel,
-  createSortedRowModel,
-  rowPaginationFeature,
-  rowSortingFeature,
-  sortFn_alphanumeric,
-  sortFn_text,
-  tableFeatures,
-  useTable,
-} from "@tanstack/react-table";
+import { createColumnHelper, useTable } from "@tanstack/react-table";
+import { DataTable, features, PAGE_SIZE } from "@/components/data-table";
 import type { Comparison, FileEntry, FileStatus } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 
@@ -32,16 +23,6 @@ const STATUS_LABEL: Record<FileStatus, string> = {
   excluded: "Excluido",
   unchanged: "Sin cambios",
 };
-
-const PAGE_SIZE = 50;
-
-const features = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text },
-  rowPaginationFeature,
-  paginatedRowModel: createPaginatedRowModel(),
-});
 
 const helper = createColumnHelper<typeof features, FileEntry>();
 
@@ -110,9 +91,6 @@ export function ComparisonTable({ comparison }: { comparison: Comparison }) {
         : [...current, status],
     );
 
-  const { pageIndex } = table.state.pagination;
-  const pageCount = table.getPageCount();
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -143,67 +121,7 @@ export function ComparisonTable({ comparison }: { comparison: Comparison }) {
           Ningún archivo coincide con los filtros.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="table table-sm">
-            <thead>
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id}>
-                  {group.headers.map((header) => {
-                    const sorted = header.column.getIsSorted();
-                    return (
-                      <th key={header.id}>
-                        <button
-                          type="button"
-                          className="cursor-pointer"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          <table.FlexRender header={header} />
-                          {sorted === "asc" && " ↑"}
-                          {sorted === "desc" && " ↓"}
-                        </button>
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getAllCells().map((cell) => (
-                    <td key={cell.id}>
-                      <table.FlexRender cell={cell} />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {pageCount > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-base-content/60">
-            {data.length} archivos · página {pageIndex + 1} de {pageCount}
-          </span>
-          <div className="join">
-            <button
-              className="btn btn-sm join-item"
-              disabled={!table.getCanPreviousPage()}
-              onClick={() => table.previousPage()}
-            >
-              Anterior
-            </button>
-            <button
-              className="btn btn-sm join-item"
-              disabled={!table.getCanNextPage()}
-              onClick={() => table.nextPage()}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <DataTable table={table} itemsLabel="archivos" />
       )}
     </div>
   );

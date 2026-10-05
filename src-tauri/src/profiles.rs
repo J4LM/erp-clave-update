@@ -187,6 +187,15 @@ impl Database {
         Ok(server_ids)
     }
 
+    pub fn profile_name(&self, id: i64) -> AppResult<String> {
+        self.conn()?
+            .query_row("SELECT name FROM profiles WHERE id = ?1", [id], |row| {
+                row.get(0)
+            })
+            .optional()?
+            .ok_or_else(|| not_found("El perfil"))
+    }
+
     pub fn get_server(&self, id: i64) -> AppResult<Server> {
         self.conn()?
             .query_row("SELECT * FROM servers WHERE id = ?1", [id], server_from_row)

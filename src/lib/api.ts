@@ -1,10 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 export interface AppInfo {
   version: string;
   os: string;
   databasePath: string;
+  /** Carpeta de backups que se usa si no se ha configurado otra. */
+  defaultBackupDir: string;
 }
 
 export const appInfoQuery = queryOptions({
@@ -179,3 +181,76 @@ export const comparisonQuery = (profileId: number, serverId: number) =>
     staleTime: Infinity,
     retry: false,
   });
+
+export const BACKUP_DIR_SETTING = "backup_dir";
+export const BACKUP_KEEP_SETTING = "backup_keep";
+export const DEFAULT_BACKUP_KEEP = 10;
+
+export interface Backup {
+  id: number;
+  /** null si el servidor se eliminó después; ya no se puede restaurar en él. */
+  serverId: number | null;
+  profileName: string;
+  serverName: string;
+  /** Fecha UTC en formato `AAAA-MM-DD HH:MM:SS`. */
+  createdAt: string;
+  filePath: string;
+  fileExists: boolean;
+  fileCount: number;
+  totalBytes: number;
+  archiveBytes: number;
+  /** Si incluye también los archivos excluidos. */
+  complete: boolean;
+  note: string;
+}
+
+export interface Progress {
+  done: number;
+  total: number;
+  /** Archivo que se está procesando. */
+  path: string;
+}
+
+export interface RestoreStats {
+  restored: number;
+  deleted: number;
+  protected: number;
+}
+
+export const backupsQuery = queryOptions({
+  queryKey: ["backups"],
+  queryFn: () => invoke<Backup[]>("list_backups"),
+});
+
+function progressChannel(onProgress: (progress: Progress) => void) {
+  const channel = new Channel<Progress>();
+  channel.onmessage = onProgress;
+  return channel;
+}
+
+export const createBackup = (
+  serverId: number,
+  note: string,
+  includeExcluded: boolean,
+  onProgress: (progress: Progress) => void,
+) =>
+  invoke<Backup>("create_backup", {
+    serverId,
+    note,
+    includeExcluded,
+    onProgress: progressChannel(onProgress),
+  });
+
+export const restoreBackup = (
+  id: number,
+  includeExcluded: boolean,
+  onProgress: (progress: Progress) => void,
+) =>
+  invoke<RestoreStats>("restore_backup", {
+    id,
+    includeExcluded,
+    onProgress: progressChannel(onProgress),
+  });
+
+export const deleteBackup = (id: number) =>
+  invoke<void>("delete_backup", { id });
