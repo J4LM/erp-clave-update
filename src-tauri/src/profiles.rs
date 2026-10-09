@@ -39,8 +39,19 @@ pub struct Server {
     pub address: String,
     pub username: Option<String>,
     pub has_password: bool,
+    /// La app dejó puesta la página de mantenimiento y aún no se ha quitado.
+    pub maintenance: bool,
     #[serde(skip)]
     pub share: ShareAddress,
+}
+
+/// Servidor que sigue mostrando la página de mantenimiento.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceServer {
+    server_id: i64,
+    server_name: String,
+    profile_name: String,
 }
 
 #[derive(Deserialize)]
@@ -94,6 +105,7 @@ fn server_from_row(row: &Row<'_>) -> rusqlite::Result<Server> {
         address: share.display(),
         username: row.get("username")?,
         has_password: row.get("has_password")?,
+        maintenance: row.get("maintenance")?,
         share,
     })
 }
@@ -259,6 +271,33 @@ impl Database {
         Ok(())
     }
 
+    pub fn set_server_maintenance(&self, id: i64, maintenance: bool) -> AppResult<()> {
+        self.conn()?.execute(
+            "UPDATE servers SET maintenance = ?1 WHERE id = ?2",
+            params![maintenance, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn maintenance_servers(&self) -> AppResult<Vec<MaintenanceServer>> {
+        let conn = self.conn()?;
+        let mut statement = conn.prepare(
+            "SELECT s.id, s.name, p.name FROM servers s
+             INNER JOIN profiles p ON p.id = s.profile_id
+             WHERE s.maintenance = 1 ORDER BY p.name COLLATE NOCASE, s.name COLLATE NOCASE",
+        )?;
+        let servers = statement
+            .query_map([], |row| {
+                Ok(MaintenanceServer {
+                    server_id: row.get(0)?,
+                    server_name: row.get(1)?,
+                    profile_name: row.get(2)?,
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(servers)
+    }
+
     pub fn delete_server(&self, id: i64) -> AppResult<()> {
         self.conn()?
             .execute("DELETE FROM servers WHERE id = ?1", [id])?;
@@ -338,6 +377,11 @@ mod tests {
         db.update_server(first, &server("Producción", r"\\srv09\erp", None))
             .unwrap();
         db.set_server_has_password(first, true).unwrap();
+        assert!(db.maintenance_servers().unwrap().is_empty());
+        db.set_server_maintenance(first, true).unwrap();
+        assert!(db.get_server(first).unwrap().maintenance);
+        assert_eq!(db.maintenance_servers().unwrap().len(), 1);
+        db.set_server_maintenance(first, false).unwrap();
         let updated = db.get_server(first).unwrap();
         assert_eq!(updated.share.host, "srv09");
         assert!(updated.has_password);

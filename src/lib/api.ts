@@ -40,6 +40,8 @@ export interface Server {
   address: string;
   username: string | null;
   hasPassword: boolean;
+  /** La app dejó puesta la página de mantenimiento y aún no se ha quitado. */
+  maintenance: boolean;
 }
 
 export interface Profile {
@@ -302,6 +304,8 @@ export interface DeployOptions {
   backup: boolean;
   /** Mostrar la página de mantenimiento de IIS mientras dura. */
   maintenance: boolean;
+  /** No quitarla al terminar bien, para actualizar antes las bases de datos. */
+  keepMaintenance: boolean;
 }
 
 export const deploymentsQuery = queryOptions({
@@ -330,3 +334,129 @@ export const deployBackupSetting = (profileId: number) =>
   `deploy_backup_${profileId}`;
 export const deployMaintenanceSetting = (profileId: number) =>
   `deploy_maintenance_${profileId}`;
+
+export interface SqlConfig {
+  /** `servidor`, `servidor,puerto` o `servidor\instancia`. */
+  host: string;
+  /** Base de datos donde está el procedimiento. */
+  database: string;
+  username: string;
+  procedure: string;
+  /** Carpeta de red donde se copian los scripts, accesible desde SQL Server. */
+  scriptsDir: string;
+  hasPassword: boolean;
+}
+
+export type SqlConfigInput = Omit<SqlConfig, "hasPassword">;
+
+export interface ErpDatabase {
+  name: string;
+  /** Servidor de SQL donde está la base de datos. */
+  server: string;
+}
+
+/** Resultado de un script en una base de datos. */
+export interface ScriptResult {
+  database: string;
+  /** Nombre del archivo, sin la carpeta. */
+  script: string;
+  ok: boolean;
+  /** Primera línea de error encontrada en la salida. */
+  error: string | null;
+  /** Salida completa de sqlcmd. */
+  output: string;
+}
+
+export type RunEvent =
+  | { type: "started"; total: number }
+  | { type: "result"; result: ScriptResult };
+
+/** Ejecución de scripts guardada en el historial. */
+export interface ScriptRunRecord {
+  id: number;
+  /** Fechas UTC en formato `AAAA-MM-DD HH:MM:SS`. */
+  startedAt: string;
+  finishedAt: string;
+  /** Carpeta de red a la que se copiaron los scripts. */
+  directory: string;
+  files: string[];
+  /** Base de datos elegida; null si fueron todas o es un reintento. */
+  target: string | null;
+  /** Ejecución cuyas bases de datos fallidas se reintentaron en esta. */
+  retryOf: number | null;
+  /** false si se interrumpió antes de terminar. */
+  completed: boolean;
+  error: string | null;
+  /** La salida de sqlcmd solo se conserva en los resultados con error. */
+  results: ScriptResult[];
+}
+
+export const sqlConfigQuery = queryOptions({
+  queryKey: ["sql-config"],
+  queryFn: () => invoke<SqlConfig>("get_sql_config"),
+  staleTime: Infinity,
+});
+
+// `password`: null conserva la guardada; una cadena vacía la elimina.
+export const saveSqlConfig = (config: SqlConfigInput, password: string | null) =>
+  invoke<void>("save_sql_config", { config, password });
+
+export const testSqlConnection = () => invoke<string>("test_sql_connection");
+
+export const erpDatabasesQuery = queryOptions({
+  queryKey: ["erp-databases"],
+  queryFn: () => invoke<ErpDatabase[]>("list_erp_databases"),
+  staleTime: 5 * 60 * 1000,
+  retry: false,
+});
+
+function runChannel(onEvent: (event: RunEvent) => void) {
+  const channel = new Channel<RunEvent>();
+  channel.onmessage = onEvent;
+  return channel;
+}
+
+export const runScripts = (
+  files: string[],
+  database: string | null,
+  onEvent: (event: RunEvent) => void,
+) =>
+  invoke<ScriptRunRecord>("run_scripts", {
+    files,
+    database,
+    onEvent: runChannel(onEvent),
+  });
+
+/** Vuelve a lanzar una ejecución en las bases de datos que fallaron. */
+export const retryScripts = (
+  runId: number,
+  onEvent: (event: RunEvent) => void,
+) =>
+  invoke<ScriptRunRecord>("retry_scripts", {
+    runId,
+    onEvent: runChannel(onEvent),
+  });
+
+export const scriptRunsQuery = queryOptions({
+  queryKey: ["script-runs"],
+  queryFn: () => invoke<ScriptRunRecord[]>("list_script_runs"),
+});
+
+/** Servidor que sigue mostrando la página de mantenimiento. */
+export interface MaintenanceServer {
+  serverId: number;
+  serverName: string;
+  profileName: string;
+}
+
+export const maintenanceServersQuery = queryOptions({
+  queryKey: ["maintenance-servers"],
+  queryFn: () => invoke<MaintenanceServer[]>("list_maintenance_servers"),
+});
+
+/** Pone o quita la página de mantenimiento de un servidor. */
+export const setMaintenance = (serverId: number, enabled: boolean) =>
+  invoke<void>("set_maintenance", { serverId, enabled });
+
+export const deployKeepMaintenanceSetting = (profileId: number) =>
+  `deploy_keep_maintenance_${profileId}`;

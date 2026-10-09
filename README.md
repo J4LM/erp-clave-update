@@ -94,13 +94,38 @@ En **Configuración → Backups** se cambia la carpeta donde se guardan y cuánt
 
 Desde el detalle de un despliegue correcto, **Volver atrás** restaura el backup que se hizo justo antes. Volver atrás desde un despliegue antiguo deshace también los posteriores.
 
+### 7. Actualizar las bases de datos
+
+Después de copiar los archivos suele hacer falta aplicar los cambios de esquema en las bases de datos de los clientes. La aplicación no ejecuta los scripts directamente: los copia a una carpeta de red y llama al procedimiento del panel de administración (`pEjecutarScriptDirectorio`), que los lanza con `sqlcmd` en cada base de datos.
+
+Primero se configura en **Configuración → Bases de datos**: el servidor de SQL, la base de datos del panel, el usuario y la contraseña, el nombre del procedimiento y la carpeta de scripts. La carpeta debe ser una ruta de red que también vea SQL Server.
+
+En **Bases de datos**:
+
+1. Se añaden los archivos `.sql`.
+2. Se elige el destino: todas las bases de datos registradas en el panel, o una sola para probar el script antes.
+3. Al ejecutar, la aplicación copia los scripts a una subcarpeta nueva con la fecha, de modo que nunca se cuela un script de una actualización anterior, y muestra el resultado de cada base de datos según termina.
+
+Cuando hay bases de datos con error, **Reintentar en las fallidas** vuelve a lanzar los scripts solo en ellas. Cada ejecución queda en **Historial → Bases de datos**, con la salida completa de las que fallaron.
+
+A tener en cuenta:
+
+- El procedimiento no indica si un script terminó bien, así que la aplicación detecta los fallos buscando los mensajes de error de SQL Server en la salida de `sqlcmd`.
+- Un error no detiene el script en esa base de datos: `sqlcmd` sigue con los lotes siguientes. Conviene generar los scripts con la opción de incluir scripts transaccionales.
+- Los cambios en las bases de datos no se pueden deshacer desde la aplicación.
+
+#### Despliegue y bases de datos bajo la misma página de mantenimiento
+
+Para que ningún usuario entre con la aplicación nueva y la base de datos antigua, al desplegar se puede marcar **Dejarla puesta al terminar** junto a la página de mantenimiento. El servidor queda en mantenimiento después de copiar los archivos, y un aviso en la parte superior de la aplicación lo recuerda hasta que se pulsa **Quitar mantenimiento**, normalmente después de actualizar las bases de datos.
+
 ## Dónde se guardan los datos
 
 | Dato | Ubicación |
 |---|---|
 | Configuración, perfiles e historial | Base de datos SQLite en la carpeta de datos de la aplicación |
+| Scripts de base de datos ejecutados | Subcarpetas con fecha dentro de la carpeta de scripts de la red |
 | Backups | Subcarpeta `backups` de esa misma carpeta, salvo que se configure otra |
-| Contraseñas de los servidores | Almacén de credenciales del sistema |
+| Contraseñas de los servidores y de SQL | Almacén de credenciales del sistema |
 
 La carpeta de datos es `%APPDATA%\com.jalm.erp-clave-update` en Windows y `~/Library/Application Support/com.jalm.erp-clave-update` en macOS. La ruta exacta se muestra en **Configuración → Acerca de**.
 
@@ -153,6 +178,7 @@ src-tauri/src/        Lógica de la aplicación (Rust)
   compare.rs          Comparación entre publicación y servidor
   deploy.rs           Despliegue e historial
   backup.rs           Backups y restauración
+  sql.rs              Scripts en las bases de datos de los clientes
 ```
 
 Los cambios en la base de datos se hacen añadiendo una entrada nueva al final de la lista de migraciones de `db.rs`. Las entradas ya publicadas no se editan.

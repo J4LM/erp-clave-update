@@ -69,6 +69,19 @@ const MIGRATIONS: &[&str] = &[
         files        TEXT NOT NULL
     ) STRICT;",
     "ALTER TABLE deployments ADD COLUMN kind TEXT NOT NULL DEFAULT 'deploy';",
+    "CREATE TABLE script_runs (
+        id          INTEGER PRIMARY KEY,
+        started_at  TEXT NOT NULL,
+        finished_at TEXT NOT NULL DEFAULT (datetime('now')),
+        directory   TEXT NOT NULL,
+        files       TEXT NOT NULL,
+        target      TEXT,
+        retry_of    INTEGER REFERENCES script_runs(id) ON DELETE SET NULL,
+        status      TEXT NOT NULL,
+        error       TEXT,
+        results     TEXT NOT NULL
+    ) STRICT;
+    ALTER TABLE servers ADD COLUMN maintenance INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub struct Database {

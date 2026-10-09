@@ -10,6 +10,7 @@ import {
 } from "@/components/deployment-status";
 import { Dialog } from "@/components/form";
 import { EmptyState, Page } from "@/components/page";
+import { ScriptRunsHistory } from "@/components/script-runs-history";
 import {
   backupsQuery,
   deploymentsQuery,
@@ -32,6 +33,7 @@ function Historial() {
   const { data: backups = [] } = useQuery(backupsQuery);
   const [detail, setDetail] = useState<Deployment | null>(null);
   const [toRestore, setToRestore] = useState<Backup | null>(null);
+  const [tab, setTab] = useState<"deployments" | "scripts">("deployments");
 
   const columns = useMemo(
     () =>
@@ -89,9 +91,28 @@ function Historial() {
   return (
     <Page
       title="Historial"
-      description="Registro de los despliegues y restauraciones realizados."
+      description="Registro de los despliegues, restauraciones y actualizaciones de bases de datos."
     >
-      {deployments.length === 0 ? (
+      <div role="tablist" className="tabs tabs-border">
+        <button
+          role="tab"
+          className={`tab ${tab === "deployments" ? "tab-active" : ""}`}
+          onClick={() => setTab("deployments")}
+        >
+          Despliegues
+        </button>
+        <button
+          role="tab"
+          className={`tab ${tab === "scripts" ? "tab-active" : ""}`}
+          onClick={() => setTab("scripts")}
+        >
+          Bases de datos
+        </button>
+      </div>
+
+      {tab === "scripts" ? (
+        <ScriptRunsHistory />
+      ) : deployments.length === 0 ? (
         <EmptyState
           title="Sin despliegues"
           description="Cada despliegue quedará registrado con su fecha, servidor, archivos cambiados y resultado."

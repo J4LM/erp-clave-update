@@ -7,6 +7,7 @@ import { EmptyState, Page } from "@/components/page";
 import {
   comparisonQuery,
   deployBackupSetting,
+  deployKeepMaintenanceSetting,
   deployMaintenanceSetting,
   profileQuery,
   profilesQuery,
@@ -163,6 +164,9 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
   const maintenanceSetting = useQuery(
     settingQuery(deployMaintenanceSetting(profileId)),
   );
+  const keepMaintenanceSetting = useQuery(
+    settingQuery(deployKeepMaintenanceSetting(profileId)),
+  );
   const [deploying, setDeploying] = useState(false);
   const counts = comparison.data?.counts;
   const changes = counts
@@ -196,7 +200,8 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
                 disabled={
                   comparison.isFetching ||
                   !backupSetting.isSuccess ||
-                  !maintenanceSetting.isSuccess
+                  !maintenanceSetting.isSuccess ||
+                  !keepMaintenanceSetting.isSuccess
                 }
                 onClick={() => setDeploying(true)}
               >
@@ -242,6 +247,7 @@ function ServerComparison({ profileId, server }: ServerComparisonProps) {
             // El backup va activado salvo que se desactivara la última vez.
             backup: backupSetting.data !== "false",
             maintenance: maintenanceSetting.data === "true",
+            keepMaintenance: keepMaintenanceSetting.data === "true",
           }}
           onClose={() => setDeploying(false)}
         />

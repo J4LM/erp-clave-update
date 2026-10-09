@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BackupsRouteImport } from './routes/backups'
+import { Route as BasesDatosRouteImport } from './routes/bases-datos'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as DesplegarRouteImport } from './routes/desplegar'
 import { Route as HistorialRouteImport } from './routes/historial'
@@ -26,6 +27,11 @@ const IndexRoute = IndexRouteImport.update({
 const BackupsRoute = BackupsRouteImport.update({
   id: '/backups',
   path: '/backups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BasesDatosRoute = BasesDatosRouteImport.update({
+  id: '/bases-datos',
+  path: '/bases-datos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracionRoute = ConfiguracionRouteImport.update({
@@ -62,6 +68,7 @@ const PerfilesNuevoRoute = PerfilesNuevoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/backups': typeof BackupsRoute
+  '/bases-datos': typeof BasesDatosRoute
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/backups': typeof BackupsRoute
+  '/bases-datos': typeof BasesDatosRoute
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/backups': typeof BackupsRoute
+  '/bases-datos': typeof BasesDatosRoute
   '/configuracion': typeof ConfiguracionRoute
   '/desplegar': typeof DesplegarRoute
   '/historial': typeof HistorialRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/backups'
+    | '/bases-datos'
     | '/configuracion'
     | '/desplegar'
     | '/historial'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/backups'
+    | '/bases-datos'
     | '/configuracion'
     | '/desplegar'
     | '/historial'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/backups'
+    | '/bases-datos'
     | '/configuracion'
     | '/desplegar'
     | '/historial'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BackupsRoute: typeof BackupsRoute
+  BasesDatosRoute: typeof BasesDatosRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
   DesplegarRoute: typeof DesplegarRoute
   HistorialRoute: typeof HistorialRoute
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/backups'
       fullPath: '/backups'
       preLoaderRoute: typeof BackupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bases-datos': {
+      id: '/bases-datos'
+      path: '/bases-datos'
+      fullPath: '/bases-datos'
+      preLoaderRoute: typeof BasesDatosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracion': {
@@ -198,6 +218,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BackupsRoute: BackupsRoute,
+  BasesDatosRoute: BasesDatosRoute,
   ConfiguracionRoute: ConfiguracionRoute,
   DesplegarRoute: DesplegarRoute,
   HistorialRoute: HistorialRoute,

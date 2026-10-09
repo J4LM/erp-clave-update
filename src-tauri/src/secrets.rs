@@ -1,4 +1,4 @@
-//! Las contraseñas de los servidores se guardan en el almacén de credenciales
+//! Las contraseñas de los servidores y del servidor SQL se guardan en el almacén de credenciales
 //! del sistema (Administrador de credenciales de Windows, Llavero de macOS),
 //! nunca en la base de datos.
 
@@ -8,27 +8,58 @@ use crate::error::AppResult;
 
 const SERVICE: &str = "erp-clave-update";
 
-fn entry(server_id: i64) -> AppResult<Entry> {
-    Ok(Entry::new(SERVICE, &format!("server-{server_id}"))?)
+/// Cuenta bajo la que se guarda la contraseña del servidor SQL del panel.
+const SQL_ACCOUNT: &str = "sql-panel";
+
+fn entry(account: &str) -> AppResult<Entry> {
+    Ok(Entry::new(SERVICE, account)?)
 }
 
-pub fn set_password(server_id: i64, password: &str) -> AppResult<()> {
-    Ok(entry(server_id)?.set_password(password)?)
+fn set(account: &str, password: &str) -> AppResult<()> {
+    Ok(entry(account)?.set_password(password)?)
 }
 
-pub fn get_password(server_id: i64) -> AppResult<Option<String>> {
-    match entry(server_id)?.get_password() {
+fn get(account: &str) -> AppResult<Option<String>> {
+    match entry(account)?.get_password() {
         Ok(password) => Ok(Some(password)),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(error) => Err(error.into()),
     }
 }
 
-pub fn delete_password(server_id: i64) -> AppResult<()> {
-    match entry(server_id)?.delete_credential() {
+fn delete(account: &str) -> AppResult<()> {
+    match entry(account)?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(error) => Err(error.into()),
     }
+}
+
+fn server_account(server_id: i64) -> String {
+    format!("server-{server_id}")
+}
+
+pub fn set_password(server_id: i64, password: &str) -> AppResult<()> {
+    set(&server_account(server_id), password)
+}
+
+pub fn get_password(server_id: i64) -> AppResult<Option<String>> {
+    get(&server_account(server_id))
+}
+
+pub fn delete_password(server_id: i64) -> AppResult<()> {
+    delete(&server_account(server_id))
+}
+
+pub fn set_sql_password(password: &str) -> AppResult<()> {
+    set(SQL_ACCOUNT, password)
+}
+
+pub fn get_sql_password() -> AppResult<Option<String>> {
+    get(SQL_ACCOUNT)
+}
+
+pub fn delete_sql_password() -> AppResult<()> {
+    delete(SQL_ACCOUNT)
 }
 
 #[cfg(test)]

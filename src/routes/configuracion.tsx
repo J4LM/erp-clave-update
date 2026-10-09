@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BackupSettings } from "@/components/backup-settings";
 import { Page } from "@/components/page";
+import { SqlSettings } from "@/components/sql-settings";
 import { UpdatesCard } from "@/components/updates-card";
 import {
   appInfoQuery,
@@ -10,6 +11,7 @@ import {
   DEFAULT_BACKUP_KEEP,
   setSetting,
   settingQuery,
+  sqlConfigQuery,
 } from "@/lib/api";
 import { THEME_SETTING, THEMES } from "@/lib/theme";
 
@@ -23,6 +25,7 @@ function Configuracion() {
   const { data: appInfo } = useQuery(appInfoQuery);
   const backupDir = useQuery(settingQuery(BACKUP_DIR_SETTING));
   const backupKeep = useQuery(settingQuery(BACKUP_KEEP_SETTING));
+  const { data: sqlConfig } = useQuery(sqlConfigQuery);
 
   const saveTheme = useMutation({
     mutationFn: (value: string) => setSetting(THEME_SETTING, value),
@@ -75,6 +78,15 @@ function Configuracion() {
               }}
               defaultDir={appInfo.defaultBackupDir}
             />
+          </div>
+        </section>
+      )}
+
+      {sqlConfig && (
+        <section className="card card-border bg-base-100">
+          <div className="card-body">
+            <h2 className="card-title">Bases de datos</h2>
+            <SqlSettings config={sqlConfig} />
           </div>
         </section>
       )}

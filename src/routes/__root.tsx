@@ -11,12 +11,14 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import {
   BackupIcon,
+  DatabaseIcon,
   DeployIcon,
   HistoryIcon,
   HomeIcon,
   ProfilesIcon,
   SettingsIcon,
 } from "@/components/icons";
+import { MaintenanceBanner } from "@/components/maintenance-banner";
 import { appInfoQuery, settingQuery } from "@/lib/api";
 import { applyTheme, THEME_SETTING } from "@/lib/theme";
 import { updateQuery } from "@/lib/updater";
@@ -33,6 +35,12 @@ const NAV_ITEMS = [
   { to: "/", label: "Inicio", icon: HomeIcon, exact: true },
   { to: "/perfiles", label: "Perfiles", icon: ProfilesIcon, exact: false },
   { to: "/desplegar", label: "Desplegar", icon: DeployIcon, exact: false },
+  {
+    to: "/bases-datos",
+    label: "Bases de datos",
+    icon: DatabaseIcon,
+    exact: false,
+  },
   { to: "/backups", label: "Backups", icon: BackupIcon, exact: false },
   { to: "/historial", label: "Historial", icon: HistoryIcon, exact: false },
   {
@@ -83,6 +91,7 @@ function RootLayout() {
         )}
       </aside>
       <main className="grow overflow-y-auto bg-base-100">
+        <MaintenanceBanner />
         <Outlet />
       </main>
       {import.meta.env.DEV && (

@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Dialog, ErrorAlert, ProgressBar } from "@/components/form";
 import {
   backupsQuery,
   comparisonQuery,
   deployBackupSetting,
+  deployKeepMaintenanceSetting,
   deployMaintenanceSetting,
   deploymentsQuery,
+  maintenanceServersQuery,
+  profilesQuery,
   deployServer,
   setSetting,
   type Comparison,
@@ -33,7 +37,7 @@ interface DeployDialogProps {
   server: Server;
   counts: Comparison["counts"];
   /** Opciones usadas la última vez con este perfil. */
-  defaults: { backup: boolean; maintenance: boolean };
+  defaults: { backup: boolean; maintenance: boolean; keepMaintenance: boolean };
   onClose: () => void;
 }
 
@@ -55,16 +59,21 @@ export function DeployDialog({
       setSubmitError(null);
       setProgress(null);
       const { backup, maintenance } = value;
+      const keepMaintenance = maintenance && value.keepMaintenance;
       try {
         await Promise.all([
           setSetting(deployBackupSetting(profileId), String(backup)),
           setSetting(deployMaintenanceSetting(profileId), String(maintenance)),
+          setSetting(
+            deployKeepMaintenanceSetting(profileId),
+            String(value.keepMaintenance),
+          ),
         ]);
         setResult(
           await deployServer(
             profileId,
             server.id,
-            { note: value.note, backup, maintenance },
+            { note: value.note, backup, maintenance, keepMaintenance },
             setProgress,
           ),
         );
@@ -76,6 +85,10 @@ export function DeployDialog({
         queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: deploymentsQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: ["setting"] }),
+        queryClient.invalidateQueries({
+          queryKey: maintenanceServersQuery.queryKey,
+        }),
+        queryClient.invalidateQueries({ queryKey: profilesQuery.queryKey }),
         // La comparación solo se hace a petición, así que se pide de nuevo aquí.
         queryClient
           .fetchQuery({
@@ -92,6 +105,11 @@ export function DeployDialog({
       <Dialog title={`Despliegue en ${server.name}`} onClose={onClose}>
         <DeployResult deployment={result} />
         <div className="modal-action">
+          {result.status === "ok" && (
+            <Link to="/bases-datos" className="btn">
+              Actualizar bases de datos
+            </Link>
+          )}
           <button className="btn" onClick={onClose}>
             Cerrar
           </button>
@@ -176,6 +194,31 @@ export function DeployDialog({
                 </label>
               )}
             </form.Field>
+
+            <form.Subscribe selector={(state) => state.values.maintenance}>
+              {(maintenance) => (
+                <form.Field name="keepMaintenance">
+                  {(field) => (
+                    <label className="label mt-2 ml-7 items-start whitespace-normal">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-sm mt-0.5"
+                        checked={maintenance && field.state.value}
+                        disabled={isSubmitting || !maintenance}
+                        onChange={(event) =>
+                          field.handleChange(event.target.checked)
+                        }
+                      />
+                      <span>
+                        Dejarla puesta al terminar, para actualizar antes las
+                        bases de datos. Se quita después desde el aviso que
+                        aparecerá arriba.
+                      </span>
+                    </label>
+                  )}
+                </form.Field>
+              )}
+            </form.Subscribe>
 
             <form.Field name="confirmation">
               {(field) => (

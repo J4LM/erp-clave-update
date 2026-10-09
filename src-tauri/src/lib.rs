@@ -8,6 +8,7 @@ mod exclusions;
 mod net;
 mod profiles;
 mod secrets;
+mod sql;
 
 use tauri::Manager;
 
@@ -52,6 +53,15 @@ pub fn run() {
             commands::delete_backup,
             commands::list_deployments,
             commands::deploy_server,
+            commands::get_sql_config,
+            commands::save_sql_config,
+            commands::test_sql_connection,
+            commands::list_erp_databases,
+            commands::run_scripts,
+            commands::retry_scripts,
+            commands::list_script_runs,
+            commands::list_maintenance_servers,
+            commands::set_maintenance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
